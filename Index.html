@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OMDAN AgentFlow — מצגת לסוכני ביטוח</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0a1628;
+    --deep: #0e1f3d;
+    --accent: #2f80ed;
+    --gold: #e8b84b;
+    --green: #34d399;
+    --white: #ffffff;
+    --text: #cdd8f0;
+    --muted: #7a90b8;
+  }
+
+  html, body { height: 100%; background: var(--navy); font-family: 'Heebo', sans-serif; overflow: hidden; user-select: none; }
+  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 52px 80px;
+    opacity: 0; transform: translateX(-60px);
+    transition: opacity 0.55s cubic-bezier(.4,0,.2,1), transform 0.55s cubic-bezier(.4,0,.2,1);
+    pointer-events: none;
+  }
+  .slide.active  { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  .slide.exit    { opacity: 0; transform: translateX(60px); transition: opacity 0.4s ease, transform 0.4s ease; }
+
+  .slide::before { content:''; position:absolute; inset:0; background:var(--deep); z-index:0; }
+  .slide-1::before  { background: linear-gradient(135deg,#080f1f 0%,#0e2040 60%,#0a1628 100%); }
+  .slide-2::before  { background: linear-gradient(160deg,#0a1628 0%,#0d1e3a 100%); }
+  .slide-3::before  { background: linear-gradient(160deg,#0a1628 0%,#0c1e3a 100%); }
+  .slide-4::before  { background: linear-gradient(160deg,#0b1830 0%,#0e1f3a 100%); }
+  .slide-5::before  { background: linear-gradient(160deg,#0a1628 0%,#0c1a38 100%); }
+  .slide-6::before  { background: linear-gradient(160deg,#0c1a30 0%,#0a1628 100%); }
+  .slide-7::before  { background: linear-gradient(160deg,#0a1628 0%,#0e1f38 100%); }
+  .slide-8::before  { background: linear-gradient(160deg,#0a1628 0%,#0c1c38 100%); }
+  .slide-9::before  { background: linear-gradient(160deg,#0b1a32 0%,#0a1628 100%); }
+  .slide-10::before { background: linear-gradient(160deg,#08111f 0%,#0e1f38 100%); }
+  .slide-11::before { background: linear-gradient(160deg,#0a1628 0%,#0d1e38 100%); }
+  .slide-12::before { background: linear-gradient(160deg,#0b1a32 0%,#0a1628 100%); }
+  .slide-13::before { background: linear-gradient(135deg,#07111f 0%,#0a1c38 60%,#0a1628 100%); }
+
+  .slide::after {
+    content:''; position:absolute; inset:0; z-index:0;
+    background-image: linear-gradient(rgba(47,128,237,0.04) 1px,transparent 1px), linear-gradient(90deg,rgba(47,128,237,0.04) 1px,transparent 1px);
+    background-size: 60px 60px;
+  }
+  .slide > * { position:relative; z-index:1; }
+
+  /* COVER */
+  .slide-1 { text-align:center; gap:0; }
+  .cover-eyebrow { font-size:12px; font-weight:500; letter-spacing:4px; color:var(--gold); text-transform:uppercase; margin-bottom:24px; }
+  .cover-title { font-size:clamp(52px,7vw,88px); font-weight:900; color:var(--white); line-height:1.05; }
+  .cover-title span { color:var(--accent); }
+  .cover-sub { font-size:clamp(15px,1.8vw,20px); font-weight:300; color:var(--text); margin-top:20px; }
+  .cover-line { width:80px; height:3px; background:var(--gold); margin:28px auto; border-radius:2px; }
+  .cover-tag { display:inline-flex; align-items:center; gap:8px; background:rgba(47,128,237,0.12); border:1px solid rgba(47,128,237,0.3); border-radius:50px; padding:8px 20px; font-size:13px; color:var(--accent); margin-top:8px; }
+  .cover-orb { position:absolute; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle,rgba(47,128,237,0.12) 0%,transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); z-index:0; pointer-events:none; }
+
+  /* CONTENT LAYOUT */
+  .slide-inner { width:100%; max-width:920px; display:flex; flex-direction:column; gap:22px; }
+  .slide-header { display:flex; align-items:flex-start; gap:20px; border-bottom:1px solid rgba(47,128,237,0.2); padding-bottom:18px; }
+  .slide-num { font-size:11px; font-weight:700; letter-spacing:3px; color:var(--gold); margin-top:4px; min-width:28px; }
+  .slide-title { font-size:clamp(26px,3.2vw,40px); font-weight:900; color:var(--white); line-height:1.15; }
+  .slide-title em { color:var(--accent); font-style:normal; }
+
+  /* CARDS */
+  .cards { display:grid; gap:13px; }
+  .cards-2 { grid-template-columns:1fr 1fr; }
+  .cards-3 { grid-template-columns:1fr 1fr 1fr; }
+  .card { background:rgba(255,255,255,0.04); border:1px solid rgba(47,128,237,0.18); border-radius:16px; padding:18px 22px; transition:border-color .2s,background .2s; }
+  .card:hover { border-color:rgba(47,128,237,0.4); background:rgba(47,128,237,0.07); }
+  .card-icon { font-size:24px; margin-bottom:9px; display:block; }
+  .card-title { font-size:14px; font-weight:700; color:var(--white); margin-bottom:5px; }
+  .card-body { font-size:13px; font-weight:300; color:var(--text); line-height:1.6; }
+  .card-accent { border-color:rgba(232,184,75,0.35); }
+  .card-accent .card-title { color:var(--gold); }
+  .card-green { border-color:rgba(52,211,153,0.3); }
+  .card-green .card-title { color:var(--green); }
+
+  /* BIG STATEMENT */
+  .big-statement { background:rgba(47,128,237,0.08); border:1px solid rgba(47,128,237,0.25); border-radius:18px; padding:20px 32px; text-align:center; }
+  .big-statement p { font-size:clamp(13px,1.5vw,17px); font-weight:400; color:var(--text); line-height:1.75; }
+  .big-statement strong { color:var(--white); font-weight:700; }
+  .big-statement .hl { color:var(--gold); font-weight:700; }
+
+  /* LIST */
+  .list-items { display:flex; flex-direction:column; gap:10px; }
+  .list-item { display:flex; align-items:flex-start; gap:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(47,128,237,0.12); border-radius:12px; padding:12px 17px; }
+  .bullet { width:8px; height:8px; border-radius:50%; background:var(--accent); margin-top:7px; flex-shrink:0; }
+  .bullet.g { background:var(--gold); }
+  .bullet.gr { background:var(--green); }
+  .list-text { font-size:14px; color:var(--text); line-height:1.6; font-weight:300; }
+  .list-text strong { color:var(--white); font-weight:600; }
+
+  /* ROUTES */
+  .routes { display:grid; grid-template-columns:1fr 1fr 1fr; gap:13px; }
+  .route { border-radius:16px; padding:22px 18px; text-align:center; border:1px solid transparent; }
+  .r1 { background:rgba(47,128,237,0.1); border-color:rgba(47,128,237,0.3); }
+  .r2 { background:rgba(232,184,75,0.08); border-color:rgba(232,184,75,0.3); }
+  .r3 { background:rgba(52,211,153,0.08); border-color:rgba(52,211,153,0.3); }
+  .route-icon { font-size:30px; margin-bottom:9px; display:block; }
+  .route-title { font-size:14px; font-weight:700; color:var(--white); margin-bottom:7px; }
+  .route-desc { font-size:12px; font-weight:300; color:var(--muted); line-height:1.6; }
+  .route-badge { display:inline-block; margin-top:9px; font-size:11px; padding:3px 11px; border-radius:50px; background:rgba(255,255,255,0.07); color:var(--muted); }
+  .route-badge.prem { background:rgba(52,211,153,0.12); color:var(--green); }
+  .route-note { margin-top:16px; background:rgba(47,128,237,0.08); border:1px solid rgba(47,128,237,0.2); border-radius:11px; padding:11px 18px; text-align:center; font-size:13px; color:var(--text); }
+  .route-note strong { color:var(--white); }
+
+  /* INSURANCE TYPES */
+  .ins-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; }
+  .ins-card { background:rgba(255,255,255,0.04); border:1px solid rgba(47,128,237,0.15); border-radius:13px; padding:15px 12px; text-align:center; transition:border-color .2s,background .2s; }
+  .ins-card:hover { border-color:rgba(47,128,237,0.35); background:rgba(47,128,237,0.07); }
+  .ins-icon { font-size:26px; margin-bottom:7px; display:block; }
+  .ins-name { font-size:13px; font-weight:700; color:var(--white); margin-bottom:3px; }
+  .ins-tag { font-size:11px; color:var(--muted); }
+
+  /* PRICING */
+  .pricing-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; }
+  .plan { border-radius:15px; padding:20px 16px; text-align:center; background:rgba(255,255,255,0.04); border:1px solid rgba(47,128,237,0.15); transition:transform .2s; }
+  .plan:hover { transform:translateY(-3px); }
+  .plan-feat { background:rgba(47,128,237,0.1); border-color:var(--accent); }
+  .plan-name { font-size:11px; font-weight:700; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:9px; }
+  .plan-price { font-size:25px; font-weight:900; color:var(--white); margin-bottom:3px; }
+  .plan-price span { font-size:12px; font-weight:400; color:var(--muted); }
+  .plan-clients { font-size:11px; color:var(--muted); margin-bottom:12px; padding-bottom:11px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .plan-label { font-size:11px; font-weight:300; color:var(--text); line-height:1.6; }
+  .plan-badge { display:inline-block; background:var(--gold); color:var(--navy); font-size:10px; font-weight:700; padding:3px 10px; border-radius:50px; margin-bottom:9px; text-transform:uppercase; letter-spacing:1px; }
+  .plan-locked { font-size:11px; color:var(--muted); margin-top:9px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.05); }
+  .plan-locked s { color:#f87171; text-decoration:none; }
+
+  /* ROI */
+  .roi-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
+  .roi-block { background:rgba(255,255,255,0.04); border:1px solid rgba(47,128,237,0.18); border-radius:17px; padding:22px 26px; }
+  .roi-block.gold-b { background:rgba(232,184,75,0.06); border-color:rgba(232,184,75,0.3); }
+  .roi-lbl { font-size:11px; font-weight:500; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:14px; }
+  .roi-calc { display:flex; flex-direction:column; gap:9px; margin-bottom:16px; }
+  .roi-row { display:flex; justify-content:space-between; align-items:center; }
+  .roi-row-l { font-size:13px; color:var(--text); font-weight:300; }
+  .roi-row-v { font-size:14px; color:var(--white); font-weight:600; }
+  .roi-div { height:1px; background:rgba(255,255,255,0.07); }
+  .roi-total { display:flex; justify-content:space-between; align-items:center; }
+  .roi-total-l { font-size:13px; font-weight:600; color:var(--text); }
+  .roi-total-v { font-size:26px; font-weight:900; color:var(--gold); }
+  .roi-conclusion { background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.25); border-radius:13px; padding:16px 22px; text-align:center; }
+  .roi-conclusion p { font-size:14px; color:var(--text); line-height:1.7; }
+  .roi-conclusion strong { color:var(--green); font-size:16px; }
+
+  /* ENGINES */
+  .engines { display:grid; grid-template-columns:1fr 1fr 1fr; gap:13px; }
+  .engine { background:rgba(255,255,255,0.04); border:1px solid rgba(47,128,237,0.18); border-radius:15px; padding:20px 18px; }
+  .eng-num { font-size:10px; font-weight:700; letter-spacing:2px; color:var(--gold); margin-bottom:8px; }
+  .eng-title { font-size:15px; font-weight:700; color:var(--white); margin-bottom:11px; }
+  .eng-items { display:flex; flex-direction:column; gap:7px; }
+  .eng-item { font-size:12px; font-weight:300; color:var(--text); display:flex; gap:8px; align-items:flex-start; line-height:1.5; }
+  .edot { width:6px; height:6px; border-radius:50%; background:var(--accent); margin-top:5px; flex-shrink:0; }
+  .edot.g { background:var(--gold); }
+  .edot.gr { background:var(--green); }
+
+  /* PORTAL ACTIONS */
+  .actions-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .action-card { background:rgba(255,255,255,0.04); border:1px solid rgba(47,128,237,0.15); border-radius:12px; padding:14px 12px; text-align:center; transition:border-color .2s; }
+  .action-card:hover { border-color:rgba(47,128,237,0.35); }
+  .action-icon { font-size:22px; margin-bottom:7px; display:block; }
+  .action-label { font-size:12px; font-weight:500; color:var(--text); line-height:1.4; }
+
+  /* STORY */
+  .story-flow { display:flex; flex-direction:column; gap:9px; }
+  .story-step { display:flex; align-items:center; gap:16px; background:rgba(255,255,255,0.03); border:1px solid rgba(47,128,237,0.12); border-radius:12px; padding:11px 17px; }
+  .s-num { width:28px; height:28px; border-radius:50%; background:rgba(47,128,237,0.15); border:1px solid rgba(47,128,237,0.4); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--accent); flex-shrink:0; }
+  .s-text { font-size:13px; color:var(--text); line-height:1.5; font-weight:300; }
+  .s-text strong { color:var(--white); font-weight:600; }
+
+  /* FINAL */
+  .slide-13 { text-align:center; }
+  .final-head { font-size:clamp(28px,4vw,52px); font-weight:900; color:var(--white); line-height:1.18; margin-bottom:14px; }
+  .final-head em { color:var(--accent); font-style:normal; }
+  .final-sub { font-size:17px; color:var(--text); font-weight:300; max-width:580px; margin:0 auto 32px; line-height:1.75; }
+  .final-tags { display:flex; gap:9px; justify-content:center; flex-wrap:wrap; }
+  .ftag { background:rgba(255,255,255,0.05); border:1px solid rgba(47,128,237,0.2); border-radius:50px; padding:9px 18px; font-size:13px; color:var(--text); }
+  .ftag.gold { background:rgba(232,184,75,0.1); border-color:rgba(232,184,75,0.4); color:var(--gold); font-weight:600; }
+
+  /* NAV */
+  .progress-bar { position:fixed; bottom:0; right:0; left:0; height:3px; background:rgba(255,255,255,0.06); z-index:100; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--gold)); transition:width .5s cubic-bezier(.4,0,.2,1); border-radius:0 2px 2px 0; }
+  .nav { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:13px; z-index:100; background:rgba(10,22,40,0.88); backdrop-filter:blur(12px); border:1px solid rgba(47,128,237,0.2); border-radius:50px; padding:6px 17px; }
+  .nav-btn { width:33px; height:33px; border-radius:50%; background:rgba(47,128,237,0.12); border:1px solid rgba(47,128,237,0.25); color:var(--text); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
+  .nav-btn:hover { background:rgba(47,128,237,0.25); border-color:var(--accent); color:var(--white); }
+  .nav-counter { font-size:12px; color:var(--muted); font-weight:500; min-width:48px; text-align:center; }
+  .nav-dots { display:flex; gap:5px; }
+  .nav-dot { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,0.15); cursor:pointer; transition:all .2s; }
+  .nav-dot.active { background:var(--accent); transform:scale(1.4); }
+  .kbd-hint { position:fixed; top:20px; left:20px; font-size:11px; color:rgba(122,144,184,0.4); z-index:100; display:flex; gap:6px; align-items:center; }
+  .kbd { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:2px 6px; font-size:11px; }
+  .logo-badge { position:fixed; top:20px; right:20px; z-index:100; font-size:13px; font-weight:700; color:rgba(255,255,255,0.28); letter-spacing:1px; }
+  .logo-badge span { color:var(--accent); }
+
+  /* ===== MOBILE RESPONSIVE ===== */
+
+  /* All slides: leave room at bottom for nav bar (~72px) */
+  .slide { padding-bottom: 90px; }
+
+  @media (max-width: 600px) {
+    /* Hide decorative chrome on mobile */
+    .kbd-hint { display: none; }
+    .logo-badge { font-size: 11px; top: 12px; right: 12px; }
+    .nav-dots { display: none; }
+
+    /* Nav bar — slimmer, always above content */
+    .nav { bottom: 16px; padding: 5px 14px; gap: 10px; }
+    .nav-btn { width: 30px; height: 30px; font-size: 13px; }
+    .nav-counter { font-size: 11px; min-width: 40px; }
+
+    /* Slides: scrollable on mobile, start from top */
+    .slide {
+      padding: 52px 18px 88px;
+      justify-content: flex-start;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* COVER slide stays centered */
+    .slide-1 {
+      justify-content: center;
+      padding: 40px 20px 88px;
+    }
+    .cover-eyebrow { font-size: 10px; letter-spacing: 3px; margin-bottom: 16px; }
+    .cover-title { font-size: clamp(36px, 10vw, 52px); }
+    .cover-line { margin: 20px auto; }
+    .cover-sub { font-size: 14px; }
+    .cover-tag { font-size: 12px; padding: 7px 16px; }
+    .cover-orb { width: 280px; height: 280px; }
+
+    /* FINAL slide stays centered */
+    .slide-13 {
+      justify-content: center;
+      padding: 40px 20px 88px;
+    }
+    .final-head { font-size: clamp(24px, 8vw, 36px); margin-bottom: 12px; }
+    .final-sub { font-size: 14px; margin-bottom: 24px; }
+    .ftag { font-size: 12px; padding: 7px 14px; }
+
+    /* Content slides inner layout */
+    .slide-inner { gap: 14px; max-width: 100%; }
+    .slide-header { padding-bottom: 14px; gap: 14px; }
+    .slide-title { font-size: clamp(20px, 6vw, 28px); }
+    .slide-num { font-size: 10px; }
+
+    /* Cards: all collapse to 1 column */
+    .cards-2,
+    .cards-3 { grid-template-columns: 1fr; }
+    .card { padding: 14px 16px; }
+    .card-icon { font-size: 20px; margin-bottom: 7px; }
+    .card-title { font-size: 13px; }
+    .card-body { font-size: 12px; }
+
+    /* Insurance grid: 2 columns */
+    .ins-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .ins-card { padding: 12px 8px; }
+    .ins-icon { font-size: 22px; margin-bottom: 5px; }
+    .ins-name { font-size: 12px; }
+    .ins-tag { font-size: 10px; }
+
+    /* Routes: 1 column */
+    .routes { grid-template-columns: 1fr; gap: 10px; }
+    .route { padding: 16px 14px; }
+    .route-icon { font-size: 24px; margin-bottom: 6px; }
+    .route-title { font-size: 13px; }
+    .route-desc { font-size: 11px; }
+    .route-note { font-size: 12px; padding: 10px 14px; margin-top: 10px; }
+
+    /* Engines: 1 column */
+    .engines { grid-template-columns: 1fr; gap: 10px; }
+    .engine { padding: 14px 16px; }
+    .eng-title { font-size: 14px; margin-bottom: 8px; }
+    .eng-item { font-size: 12px; }
+
+    /* Actions: 2 columns */
+    .actions-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .action-card { padding: 11px 8px; }
+    .action-icon { font-size: 18px; margin-bottom: 5px; }
+    .action-label { font-size: 11px; }
+
+    /* Pricing: 2 columns */
+    .pricing-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .plan { padding: 14px 10px; }
+    .plan-price { font-size: 20px; }
+    .plan-label { font-size: 10px; }
+    .plan-clients { font-size: 10px; }
+    .plan-locked { font-size: 10px; }
+
+    /* ROI: 1 column */
+    .roi-grid { grid-template-columns: 1fr; gap: 10px; }
+    .roi-block { padding: 16px 18px; }
+    .roi-row-l { font-size: 12px; }
+    .roi-row-v { font-size: 13px; }
+    .roi-total-v { font-size: 22px; }
+    .roi-conclusion { padding: 12px 16px; }
+    .roi-conclusion p { font-size: 13px; }
+    .roi-conclusion strong { font-size: 14px; }
+
+    /* Story: tighter */
+    .story-flow { gap: 7px; }
+    .story-step { padding: 9px 13px; gap: 12px; }
+    .s-num { width: 24px; height: 24px; font-size: 11px; }
+    .s-text { font-size: 12px; }
+
+    /* List items */
+    .list-item { padding: 10px 14px; gap: 12px; }
+    .list-text { font-size: 13px; }
+
+    /* Big statement */
+    .big-statement { padding: 14px 18px; }
+    .big-statement p { font-size: 13px !important; }
+
+    /* Inline card overrides for slide-5 */
+    .cards-3 .card[style] {
+      padding: 12px 10px !important;
+    }
+  }
+
+  /* Tablet: 601–900px — moderate adjustments */
+  @media (min-width: 601px) and (max-width: 900px) {
+    .slide { padding: 44px 40px 90px; }
+    .slide-1 { padding: 44px 40px 90px; }
+    .slide-13 { padding: 44px 40px 90px; }
+
+    .kbd-hint { display: none; }
+    .nav-dots { display: none; }
+
+    .cover-title { font-size: clamp(42px, 8vw, 64px); }
+    .slide-title { font-size: clamp(22px, 4vw, 32px); }
+
+    .cards-3 { grid-template-columns: 1fr 1fr; }
+    .routes { grid-template-columns: 1fr; gap: 10px; }
+    .engines { grid-template-columns: 1fr 1fr; }
+    .ins-grid { grid-template-columns: repeat(4, 1fr); }
+    .actions-grid { grid-template-columns: repeat(4, 1fr); }
+    .pricing-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .roi-grid { grid-template-columns: 1fr; gap: 12px; }
+
+    .slide-inner { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="logo-badge">OMDAN <span>AgentFlow</span></div>
+<div class="kbd-hint"><span class="kbd">←</span><span class="kbd">→</span> ניווט</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="deck">
+
+  <!-- 01 COVER -->
+  <div class="slide slide-1 active">
+    <div class="cover-orb"></div>
+    <div class="cover-eyebrow">OMDAN · AgentFlow</div>
+    <div class="cover-title">הפורטל ש<span>המבוטח</span><br>חיכה לו</div>
+    <div class="cover-line"></div>
+    <div class="cover-sub">פלטפורמת ביטוח דיגיטלית מלאה לסוכנויות<br>עם מנוע צמיחה פנימי</div>
+    <div class="cover-tag">🚀 חינם עד 50 לקוחות ראשונים</div>
+  </div>
+
+  <!-- 02 PROBLEM -->
+  <div class="slide slide-2">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">02</div>
+        <div class="slide-title">הבעיה שכולנו<br><em>מכירים</em></div>
+      </div>
+      <div class="cards cards-2">
+        <div class="card">
+          <span class="card-icon">📱</span>
+          <div class="card-title">ריבוי ערוצים בלתי מנוהלים</div>
+          <div class="card-body">לקוחות פונים בוואטסאפ, טלפון, מייל ו-SMS — ואין מקום אחד שמרכז הכל.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📂</span>
+          <div class="card-title">מסמכים מפוזרים</div>
+          <div class="card-body">פוליסות, תמונות ואסמכתאות נשלחות לכל כיוון ואובדות בלחץ של אירוע נזק.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🌫️</span>
+          <div class="card-title">הלקוח לא יודע מה קורה</div>
+          <div class="card-body">אין לו מקום לעקוב אחרי הסטטוס. הוא מתקשר ושואל — ואתה עונה שוב ושוב.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔥</span>
+          <div class="card-title">עומס שמסתיר הכנסות</div>
+          <div class="card-body">כשאתה בכיבוי שרפות, אין זמן לזהות פערי כיסוי, להציע הרחבות ולשמר תיק.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 SOLUTION -->
+  <div class="slide slide-3">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">03</div>
+        <div class="slide-title">הפתרון — <em>כל הביטוחים</em><br>במקום אחד</div>
+      </div>
+      <div class="list-items">
+        <div class="list-item">
+          <div class="bullet"></div>
+          <div class="list-text"><strong>פורטל ממותג לסוכנות</strong> — הלוגו שלך, הצבעים שלך. הלקוח מרגיש שאתה מאחורי זה.</div>
+        </div>
+        <div class="list-item">
+          <div class="bullet g"></div>
+          <div class="list-text"><strong>תיק ביטוחי מלא למבוטח</strong> — רכב, דירה, תכולה, חיים, בריאות, עסק — הכל מסודר במקום אחד.</div>
+        </div>
+        <div class="list-item">
+          <div class="bullet gr"></div>
+          <div class="list-text"><strong>פתיחת אירוע נזק מסודרת</strong> — הלקוח מדווח, מעלה תמונות ובוחר מסלול. אתה מקבל התראה מיידית.</div>
+        </div>
+        <div class="list-item">
+          <div class="bullet"></div>
+          <div class="list-text"><strong>חיבור חכם ל-OMDAN</strong> — כשהלקוח לא מרוצה מבעל המקצוע של ההסדר, יש לו אלטרנטיבה עצמאית בלחיצה.</div>
+        </div>
+      </div>
+      <div class="big-statement" style="padding:15px 26px;">
+        <p style="font-size:15px;"><span class="hl">"כל הביטוחים שלך במקום אחד"</span> — זה מה שהלקוח שלך רואה ביום הראשון.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 INSURANCE TYPES -->
+  <div class="slide slide-4">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">04</div>
+        <div class="slide-title">כל סוגי הביטוח<br><em>בפלטפורמה</em></div>
+      </div>
+      <div class="ins-grid">
+        <div class="ins-card"><span class="ins-icon">🚗</span><div class="ins-name">ביטוח רכב</div><div class="ins-tag">חובה + מקיף</div></div>
+        <div class="ins-card"><span class="ins-icon">🏠</span><div class="ins-name">ביטוח דירה</div><div class="ins-tag">מבנה + תכולה</div></div>
+        <div class="ins-card"><span class="ins-icon">📦</span><div class="ins-name">ביטוח תכולה</div><div class="ins-tag">רכוש אישי</div></div>
+        <div class="ins-card"><span class="ins-icon">❤️</span><div class="ins-name">ביטוח חיים</div><div class="ins-tag">ריסק + חיסכון</div></div>
+        <div class="ins-card"><span class="ins-icon">🏥</span><div class="ins-name">ביטוח בריאות</div><div class="ins-tag">פרט + קבוצתי</div></div>
+        <div class="ins-card"><span class="ins-icon">💼</span><div class="ins-name">אובדן כושר עבודה</div><div class="ins-tag">הכנסה + שכיר</div></div>
+        <div class="ins-card"><span class="ins-icon">🏢</span><div class="ins-name">ביטוח עסק</div><div class="ins-tag">רכוש + אחריות</div></div>
+        <div class="ins-card" style="border-color:rgba(232,184,75,0.2);opacity:.75;"><span class="ins-icon">➕</span><div class="ins-name">הרחבות עתידיות</div><div class="ins-tag" style="color:var(--gold);">בקרוב</div></div>
+      </div>
+      <div class="big-statement" style="padding:12px 22px;">
+        <p style="font-size:12.5px;">לכל כיסוי — סטטוס, חברת ביטוח, סכום כיסוי, ואינדיקציה לפער או כפילות. <strong>ללא מידע רפואי רגיש.</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 05 KEY PRINCIPLE -->
+  <div class="slide slide-5">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">05</div>
+        <div class="slide-title">העיקרון שחשוב<br><em>להבין</em></div>
+      </div>
+      <div class="big-statement">
+        <p>המבוטח פונה קודם כל לסוכן — וניתן לו טיפול <strong>דרך חברת ההסדר של הביטוח.</strong></p>
+        <br>
+        <p>אם הוא לא מרוצה מבעלי המקצוע של ההסדר — יש לו <span class="hl">אלטרנטיבה עצמאית דרך OMDAN.</span><br>אנשי מקצוע שעובדים בשביל <strong>הלקוח</strong> — לא בשביל חברת הביטוח.</p>
+      </div>
+      <div class="cards cards-3">
+        <div class="card" style="text-align:center;padding:14px 10px;">
+          <span class="card-icon">🏦</span>
+          <div class="card-title" style="font-size:13px;">קודם כל — ההסדר</div>
+          <div class="card-body" style="font-size:12px;">המסלול הרגיל נשאר ברירת המחדל</div>
+        </div>
+        <div class="card" style="text-align:center;padding:14px 10px;">
+          <span class="card-icon">🔄</span>
+          <div class="card-title" style="font-size:13px;">לא מרוצה? יש אלטרנטיבה</div>
+          <div class="card-body" style="font-size:12px;">OMDAN מספקת בעל מקצוע עצמאי</div>
+        </div>
+        <div class="card" style="text-align:center;padding:14px 10px;">
+          <span class="card-icon">🛡️</span>
+          <div class="card-title" style="font-size:13px;">הסוכן שומר שליטה</div>
+          <div class="card-body" style="font-size:12px;">בכל מסלול — ההחלטה אצלך</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 06 3 ROUTES -->
+  <div class="slide slide-6">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">06</div>
+        <div class="slide-title">מסלול הטיפול בנזק —<br><em>הלקוח בוחר</em></div>
+      </div>
+      <div class="routes">
+        <div class="route r1">
+          <span class="route-icon">🏦</span>
+          <div class="route-title">דרך הביטוח</div>
+          <div class="route-desc">הסוכן מנתב לבעלי מקצוע של חברת ההסדר. טיפול רגיל, ללא עלות נוספת ללקוח.</div>
+          <div class="route-badge">ברירת מחדל — תמיד ראשון</div>
+        </div>
+        <div class="route r2">
+          <span class="route-icon">🔄</span>
+          <div class="route-title">לא מרוצה? OMDAN עצמאי</div>
+          <div class="route-desc">הלקוח לא מרוצה מבעל המקצוע של ההסדר — פונה לשמאי או מאתר נזילות של OMDAN. אנשי מקצוע שעובדים בשביל <strong style="color:var(--white)">הלקוח</strong>, לא בשביל הביטוח.</div>
+          <div class="route-badge">אלטרנטיבה עצמאית</div>
+        </div>
+        <div class="route r3">
+          <span class="route-icon">⚡</span>
+          <div class="route-title">OMDAN מהיום הראשון</div>
+          <div class="route-desc">הלקוח רוצה שמאי עצמאי מהרגע הראשון — ללא המתנה להסדר. מסלול פרמיום בתשלום, עם אישור הסוכן.</div>
+          <div class="route-badge prem">פרמיום · דחיפות גבוהה</div>
+        </div>
+      </div>
+      <div class="route-note">
+        בכל מסלול — <strong>הסוכן מקבל התראה ונשאר בשליטה.</strong> הלקוח מרגיש שיש לו כוח בחירה אמיתי — וזה יוצר נאמנות.
+      </div>
+    </div>
+  </div>
+
+  <!-- 07 AGENT VALUE -->
+  <div class="slide slide-7">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">07</div>
+        <div class="slide-title">מה <em>אתה מרוויח</em><br>כסוכן</div>
+      </div>
+      <div class="cards cards-2">
+        <div class="card card-accent">
+          <span class="card-icon">💡</span>
+          <div class="card-title">לידים מתוך התיק הקיים</div>
+          <div class="card-body">המערכת מזהה פערי כיסוי וכפילויות אוטומטית. אתה מקבל הזדמנויות מכירה — לא משימות.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🤖</span>
+          <div class="card-title">הצעות יזומות ואוטומטיות</div>
+          <div class="card-body">חידושים, תזכורות, הצעות הרחבה — יוצאות אוטומטית. פחות עבודה ידנית, יותר המרות.</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔒</span>
+          <div class="card-title">שימור לקוחות חזק יותר</div>
+          <div class="card-body">לקוח שחי בתוך הפורטל שלך ורואה את הביטוחים תחת המותג שלך — לא עוזב בקלות.</div>
+        </div>
+        <div class="card card-green">
+          <span class="card-icon">💰</span>
+          <div class="card-title">הכנסה נוספת מנזקים</div>
+          <div class="card-body">כשלקוח עובר לבעל מקצוע של OMDAN — אתה מרוויח על הפנייה. הלקוח מרוצה, ואתה הפכת את הנזק להזדמנות.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 08 CLIENT PORTAL -->
+  <div class="slide slide-8">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">08</div>
+        <div class="slide-title">מה <em>המבוטח</em><br>עושה בפורטל</div>
+      </div>
+      <div class="actions-grid">
+        <div class="action-card"><span class="action-icon">📋</span><div class="action-label">צפייה בפוליסות ובכיסויים</div></div>
+        <div class="action-card"><span class="action-icon">📁</span><div class="action-label">גישה למסמכים ואסמכתאות</div></div>
+        <div class="action-card"><span class="action-icon">🔔</span><div class="action-label">בדיקת סטטוס תביעה</div></div>
+        <div class="action-card"><span class="action-icon">⚠️</span><div class="action-label">פתיחת אירוע נזק</div></div>
+        <div class="action-card"><span class="action-icon">🔍</span><div class="action-label">בקשת בדיקת כיסוי</div></div>
+        <div class="action-card"><span class="action-icon">💬</span><div class="action-label">פנייה ישירה לסוכן</div></div>
+        <div class="action-card"><span class="action-icon">📈</span><div class="action-label">קבלת הצעת הרחבה</div></div>
+        <div class="action-card"><span class="action-icon">🟡</span><div class="action-label">צפייה בפערים בכיסוי</div></div>
+      </div>
+      <div class="big-statement" style="padding:13px 22px;">
+        <p style="font-size:13px;">לקוח שמרגיש מוגן ומסודר — <strong>חידושים יותר, מתלונן פחות, ממליץ לחברים.</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 09 REVENUE ENGINES -->
+  <div class="slide slide-9">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">09</div>
+        <div class="slide-title">שלושת מנועי<br><em>ההכנסה</em></div>
+      </div>
+      <div class="engines">
+        <div class="engine">
+          <div class="eng-num">מנוע 01</div>
+          <div class="eng-title">השבחת תיק</div>
+          <div class="eng-items">
+            <div class="eng-item"><div class="edot"></div>זיהוי חוסרים וכפילויות בכיסוי</div>
+            <div class="eng-item"><div class="edot"></div>הצעת הרחבות רלוונטיות</div>
+            <div class="eng-item"><div class="edot"></div>לידים פנימיים מהתיק הקיים</div>
+            <div class="eng-item"><div class="edot"></div>דוחות הזדמנויות לסוכן</div>
+          </div>
+        </div>
+        <div class="engine">
+          <div class="eng-num">מנוע 02</div>
+          <div class="eng-title">אוטומציות מכירה</div>
+          <div class="eng-items">
+            <div class="eng-item"><div class="edot g"></div>טריגרי חידוש יזום</div>
+            <div class="eng-item"><div class="edot g"></div>פניות אוטומטיות לפי אירוע</div>
+            <div class="eng-item"><div class="edot g"></div>הצעות בזמן הנכון</div>
+            <div class="eng-item"><div class="edot g"></div>שימור לקוחות בסיכון</div>
+          </div>
+        </div>
+        <div class="engine">
+          <div class="eng-num">מנוע 03</div>
+          <div class="eng-title">OMDAN — מקצועיות עצמאית</div>
+          <div class="eng-items">
+            <div class="eng-item"><div class="edot gr"></div>שמאי ומאתר נזילות עצמאיים</div>
+            <div class="eng-item"><div class="edot gr"></div>חלופה להסדר כשהלקוח לא מרוצה</div>
+            <div class="eng-item"><div class="edot gr"></div>עובדים בשביל הלקוח — לא הביטוח</div>
+            <div class="eng-item"><div class="edot gr"></div>הכנסה נוספת לסוכן על כל פנייה</div>
+          </div>
+        </div>
+      </div>
+      <div class="big-statement" style="padding:13px 22px;">
+        <p style="font-size:13px;">שלושת המנועים פתוחים <strong>במסלול Growth ומעלה.</strong> במסלול Free — תצוגת Preview בלבד.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10 ROI -->
+  <div class="slide slide-10">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">10</div>
+        <div class="slide-title">כמה זה שווה לך<br><em>במספרים</em></div>
+      </div>
+      <div class="roi-grid">
+        <div class="roi-block">
+          <div class="roi-lbl">דוגמה — סוכן עם 120 לקוחות</div>
+          <div class="roi-calc">
+            <div class="roi-row"><div class="roi-row-l">5% שדרוגי כיסוי מהתיק</div><div class="roi-row-v">6 לקוחות</div></div>
+            <div class="roi-div"></div>
+            <div class="roi-row"><div class="roi-row-l">רווח ממוצע לשדרוג</div><div class="roi-row-v">~₪500</div></div>
+            <div class="roi-div"></div>
+            <div class="roi-row"><div class="roi-row-l">2 אירועי נזק עם שירות OMDAN</div><div class="roi-row-v">הכנסה נוספת</div></div>
+          </div>
+          <div class="roi-total">
+            <div class="roi-total-l">פוטנציאל חודשי</div>
+            <div class="roi-total-v">~₪3,000+</div>
+          </div>
+        </div>
+        <div class="roi-block gold-b">
+          <div class="roi-lbl">עלות מול ערך</div>
+          <div class="roi-calc">
+            <div class="roi-row"><div class="roi-row-l">עלות מנוי Growth</div><div class="roi-row-v">₪299/חודש</div></div>
+            <div class="roi-div"></div>
+            <div class="roi-row"><div class="roi-row-l">פוטנציאל הכנסה נוספת</div><div class="roi-row-v">~₪3,000+</div></div>
+            <div class="roi-div"></div>
+            <div class="roi-row"><div class="roi-row-l">יחס ROI</div><div class="roi-row-v" style="color:var(--gold);">×10</div></div>
+          </div>
+          <div class="roi-total">
+            <div class="roi-total-l">עסקה ראשונה</div>
+            <div class="roi-total-v" style="color:var(--green);font-size:20px;">מחזירה את עצמה</div>
+          </div>
+        </div>
+      </div>
+      <div class="roi-conclusion">
+        <p><strong>המערכת לא עולה כסף — היא אמורה לייצר יותר ממה שהיא עולה.</strong><br>
+        עסקת שדרוג אחת, ואתה כבר ברווח.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11 PRICING -->
+  <div class="slide slide-11">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">11</div>
+        <div class="slide-title">מודל מחירים —<br><em>כניסה ללא סיכון</em></div>
+      </div>
+      <div class="pricing-grid">
+        <div class="plan">
+          <div class="plan-badge">להתחיל</div>
+          <div class="plan-name">Free</div>
+          <div class="plan-price">₪0<span>/חודש</span></div>
+          <div class="plan-clients">עד 50 לקוחות</div>
+          <div class="plan-label">פורטל מבוטח מלא · פתיחת נזק · חיבור בסיסי ל-OMDAN</div>
+          <div class="plan-locked"><s>⚠</s> מנועי הכנסה — Preview בלבד</div>
+        </div>
+        <div class="plan plan-feat">
+          <div class="plan-name">Growth</div>
+          <div class="plan-price">₪299<span>/חודש</span></div>
+          <div class="plan-clients">51–150 לקוחות</div>
+          <div class="plan-label">כל מנועי ההכנסה · אוטומציות מכירה · חיבור OMDAN מלא</div>
+        </div>
+        <div class="plan">
+          <div class="plan-name">Pro</div>
+          <div class="plan-price">₪499<span>/חודש</span></div>
+          <div class="plan-clients">151–300 לקוחות</div>
+          <div class="plan-label">אנליטיקה מורחבת · SLA policies · הרשאות מתקדמות</div>
+        </div>
+        <div class="plan">
+          <div class="plan-name">Agency</div>
+          <div class="plan-price">₪699+<span>/חודש</span></div>
+          <div class="plan-clients">300+ לקוחות</div>
+          <div class="plan-label">White-label מלא · דומיין מותאם · תמיכה ייעודית</div>
+        </div>
+      </div>
+      <div class="big-statement" style="padding:12px 22px;">
+        <p style="font-size:13px;"><strong>עד 50 לקוחות — כניסה ללא סיכון.</strong> ברגע שאתה רואה ערך ומגדיל את הסוכנות — המערכת מוכיחה את עצמה.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12 STORY -->
+  <div class="slide slide-12">
+    <div class="slide-inner">
+      <div class="slide-header">
+        <div class="slide-num">12</div>
+        <div class="slide-title">סיפור אחד<br><em>מהחיים</em></div>
+      </div>
+      <div class="story-flow">
+        <div class="story-step">
+          <div class="s-num">1</div>
+          <div class="s-text">יוסי נכנס לפורטל ורואה <strong>את כל הביטוחים שלו</strong> — רכב, דירה, חיים — מסודרים במקום אחד.</div>
+        </div>
+        <div class="story-step">
+          <div class="s-num">2</div>
+          <div class="s-text">יוסי פותח <strong>אירוע נזק מים</strong> מהנייד ב-2 דקות. אתה מקבל התראה ומנתב אותו לבעל מקצוע של ההסדר — <strong>המסלול הרגיל.</strong></div>
+        </div>
+        <div class="story-step">
+          <div class="s-num">3</div>
+          <div class="s-text">יוסי לא מרוצה מהמאתר שנשלח. הוא פותח בקשה ב-OMDAN — <strong>מאתר נזילות עצמאי</strong> שעובד בשבילו, לא בשביל חברת הביטוח. אישרת בלחיצה.</div>
+        </div>
+        <div class="story-step">
+          <div class="s-num">4</div>
+          <div class="s-text">המערכת מזהה: <strong>ליוסי חסר כיסוי תכולה.</strong> מופיעה תובנה בדשבורד שלך — ליד ממשי, לא עומס.</div>
+        </div>
+        <div class="story-step">
+          <div class="s-num">5</div>
+          <div class="s-text">יוסי שמח — קיבל <strong>מקצועי עצמאי שעבד בשבילו.</strong> אתה שמרת לקוח, הרווחת על הנזק, וזיהית הזדמנות מכירה. הכל בלי לקום מהכסא.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13 FINAL -->
+  <div class="slide slide-13">
+    <div class="cover-orb"></div>
+    <div class="cover-eyebrow">סיכום</div>
+    <div class="final-head">לא רק שירות דיגיטלי.<br><em>מערכת שמגדילה</em><br>את הערך של כל לקוח.</div>
+    <div class="final-sub">הפורטל שכבר נותן ללקוח יותר —<br>ומתחיל לייצר לסוכן יותר.</div>
+    <div class="final-tags">
+      <div class="ftag gold">✓ חינם עד 50 לקוחות</div>
+      <div class="ftag">✓ כל סוגי הביטוח</div>
+      <div class="ftag">✓ שלושה מנועי הכנסה</div>
+      <div class="ftag">✓ OMDAN רק כשצריך</div>
+      <div class="ftag">✓ אין מחויבות בהתחלה</div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="nav">
+  <button class="nav-btn" onclick="navigate(-1)">→</button>
+  <div class="nav-dots" id="navDots"></div>
+  <div class="nav-counter" id="navCounter">1 / 13</div>
+  <button class="nav-btn" onclick="navigate(1)">←</button>
+</nav>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsContainer = document.getElementById('navDots');
+  const counter = document.getElementById('navCounter');
+  const fill = document.getElementById('progressFill');
+  let current = 0, animating = false;
+
+  slides.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    dotsContainer.appendChild(dot);
+  });
+
+  function updateUI() {
+    counter.textContent = `${current + 1} / ${slides.length}`;
+    fill.style.width = `${((current + 1) / slides.length) * 100}%`;
+    document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === current));
+  }
+
+  function goTo(idx) {
+    if (animating || idx === current || idx < 0 || idx >= slides.length) return;
+    animating = true;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('exit');
+    setTimeout(() => {
+      slides[current].classList.remove('exit');
+      current = idx;
+      slides[current].classList.add('active');
+      updateUI();
+      setTimeout(() => animating = false, 600);
+    }, 380);
+  }
+
+  function navigate(dir) { goTo(current + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') navigate(1);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') navigate(-1);
+  });
+
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = tx - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) navigate(dx > 0 ? 1 : -1);
+  });
+
+  updateUI();
+</script>
+</body>
+</html>
